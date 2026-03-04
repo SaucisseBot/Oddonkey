@@ -1,0 +1,39 @@
+[package]
+name = "oddonkey"
+version = "0.1.0"
+edition = "2021"
+description = "A dead-simple Ollama wrapper – auto-installs Ollama & models, then lets you prompt in two lines of code."
+license = "MIT"
+
+[features]
+default = []
+progress = ["indicatif"]
+report = []
+
+[dependencies]
+bytes = "1"
+indicatif = { version = "0.17", optional = true }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+futures-core = "0.3"
+which = "7"
+async-trait = "0.1"
+
+[[example]]
+name = "chat"
+path = "examples/chat.rs"
+
+[[example]]
+name = "stream"
+path = "examples/stream.rs"
+
+[[example]]
+name = "embeddings"
+path = "examples/embeddings.rs"
+
+[[example]]
+name = "report"
+path = "examples/report.rs"
