@@ -59,7 +59,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-oddonkey = "0.1"
+oddonkey = "0.2"
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -86,7 +86,7 @@ That's it — Ollama is installed and the model is pulled automatically on first
 Enable in `Cargo.toml`:
 
 ```toml
-oddonkey = { version = "0.1", features = ["progress", "report"] }
+oddonkey = { version = "0.2", features = ["progress", "report"] }
 ```
 
 | Feature    | Description |
@@ -117,7 +117,7 @@ let mut model = OddOnkey::builder("mistral")
 With the `docker` feature enabled, Ollama runs entirely inside a Docker container — nothing is installed on the host except Docker itself.
 
 ```toml
-oddonkey = { version = "0.1", features = ["docker"] }
+oddonkey = { version = "0.2", features = ["docker"] }
 ```
 
 ```rust
