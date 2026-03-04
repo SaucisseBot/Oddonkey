@@ -4,9 +4,12 @@ use tokio_stream::StreamExt;
 #[tokio::main]
 async fn main() {
     // 1. Build with ALL features: Docker, progress bar, report, cleanup on exit
-    let mut model = OddOnkey::builder("mistral")
+    let builder = OddOnkey::builder("mistral");
+    #[cfg(feature = "docker")]
+    let builder = builder
         .docker(true) // run Ollama inside Docker (no local install)
-        .docker_cleanup(true) // remove container + volume when done (zero waste)
+        .docker_cleanup(true); // remove container + volume when done (zero waste)
+    let mut model = builder
         .progress(true) // show spinner/progress bar during pull & start
         .report(true) // collect per-prompt stats
         .build()

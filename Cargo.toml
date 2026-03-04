@@ -2,9 +2,16 @@
 name = "oddonkey"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.75"
 description = "A dead-simple Ollama wrapper – auto-installs Ollama & models, then lets you prompt in two lines of code."
 license = "MIT"
 repository = "https://github.com/SaucisseBot/Oddonkey"
+homepage = "https://github.com/SaucisseBot/Oddonkey"
+documentation = "https://docs.rs/oddonkey"
+readme = "README.md"
+keywords = ["ollama", "llm", "ai", "local-llm", "embeddings"]
+categories = ["api-bindings", "asynchronous"]
+exclude = ["target/", ".git/", ".github/"]
 
 [features]
 default = []
