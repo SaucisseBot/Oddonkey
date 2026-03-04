@@ -1,6 +1,6 @@
 [package]
 name = "oddonkey"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.75"
 description = "A dead-simple Ollama wrapper – auto-installs Ollama & models, then lets you prompt in two lines of code."
