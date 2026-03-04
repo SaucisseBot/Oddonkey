@@ -1,5 +1,7 @@
 use std::time::Instant;
 
+#[cfg(feature = "docker")]
+use crate::adapters::docker::manager::DockerManager;
 use crate::adapters::ollama::stream::TokenStream;
 use crate::core::builder::OddOnkeyBuilder;
 use crate::domain::error::OddOnkeyError;
@@ -22,6 +24,8 @@ pub struct OddOnkey {
     progress: bool,
     report_enabled: bool,
     last_report: Option<PromptReport>,
+    #[cfg(feature = "docker")]
+    docker_cleanup: bool,
 }
 
 impl OddOnkey {
@@ -55,6 +59,7 @@ impl OddOnkey {
         model: String,
         progress: bool,
         report: bool,
+        #[cfg(feature = "docker")] docker_cleanup: bool,
     ) -> Self {
         Self {
             model,
@@ -65,6 +70,8 @@ impl OddOnkey {
             progress,
             report_enabled: report,
             last_report: None,
+            #[cfg(feature = "docker")]
+            docker_cleanup,
         }
     }
 
@@ -160,7 +167,8 @@ impl OddOnkey {
 
         // Persist in history
         self.history.push(ChatMessage::user(user_message));
-        self.history.push(ChatMessage::assistant(&assistant_content));
+        self.history
+            .push(ChatMessage::assistant(&assistant_content));
 
         Ok(assistant_content)
     }
@@ -252,5 +260,18 @@ impl OddOnkey {
         messages.push(ChatMessage::user(user_message));
 
         messages
+    }
+}
+
+#[cfg(feature = "docker")]
+impl Drop for OddOnkey {
+    fn drop(&mut self) {
+        if self.docker_cleanup {
+            eprintln!("[oddonkey] cleaning up Docker container…");
+            let mgr = DockerManager::new();
+            if let Err(e) = mgr.destroy() {
+                eprintln!("[oddonkey] docker cleanup failed: {e}");
+            }
+        }
     }
 }

@@ -10,6 +10,7 @@ repository = "https://github.com/SaucisseBot/Oddonkey"
 default = []
 progress = ["indicatif"]
 report = []
+docker = []
 
 [dependencies]
 bytes = "1"

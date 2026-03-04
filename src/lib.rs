@@ -37,3 +37,6 @@ pub use crate::domain::message::ChatMessage;
 pub use crate::domain::options::GenerationOptions;
 pub use crate::domain::report::PromptReport;
 pub use crate::ports::llm_provider::LlmProvider;
+
+#[cfg(feature = "docker")]
+pub use crate::adapters::docker::manager::DockerManager;

@@ -2,6 +2,8 @@ use std::time::Duration;
 
 use reqwest::Client;
 
+#[cfg(feature = "docker")]
+use crate::adapters::docker::manager::DockerManager;
 use crate::adapters::ollama::client::OllamaClient;
 use crate::adapters::ollama::installer;
 use crate::adapters::ollama::pull;
@@ -26,6 +28,14 @@ pub struct OddOnkeyBuilder {
     base_url: String,
     progress: bool,
     report: bool,
+    #[cfg(feature = "docker")]
+    docker: bool,
+    #[cfg(feature = "docker")]
+    docker_gpu: bool,
+    #[cfg(feature = "docker")]
+    docker_port: u16,
+    #[cfg(feature = "docker")]
+    docker_cleanup: bool,
 }
 
 impl OddOnkeyBuilder {
@@ -35,6 +45,14 @@ impl OddOnkeyBuilder {
             base_url: "http://127.0.0.1:11434".to_string(),
             progress: false,
             report: false,
+            #[cfg(feature = "docker")]
+            docker: false,
+            #[cfg(feature = "docker")]
+            docker_gpu: false,
+            #[cfg(feature = "docker")]
+            docker_port: 11434,
+            #[cfg(feature = "docker")]
+            docker_cleanup: false,
         }
     }
 
@@ -58,30 +76,96 @@ impl OddOnkeyBuilder {
         self
     }
 
+    /// Run Ollama inside a Docker container instead of installing it
+    /// locally. Requires the `docker` Cargo feature and Docker on the
+    /// host.
+    ///
+    /// The container is named `oddonkey-ollama`, persists pulled models
+    /// across restarts, and is automatically created/started as needed.
+    #[cfg(feature = "docker")]
+    pub fn docker(mut self, on: bool) -> Self {
+        self.docker = on;
+        self
+    }
+
+    /// Enable GPU passthrough (`--gpus=all`) for the Docker container.
+    /// Requires the NVIDIA Container Toolkit.
+    #[cfg(feature = "docker")]
+    pub fn docker_gpu(mut self, on: bool) -> Self {
+        self.docker_gpu = on;
+        self
+    }
+
+    /// Override the host port mapped to the Docker container
+    /// (default `11434`).
+    #[cfg(feature = "docker")]
+    pub fn docker_port(mut self, port: u16) -> Self {
+        self.docker_port = port;
+        self
+    }
+
+    /// When enabled, automatically stop and remove the Docker container
+    /// (and its volume) when the `OddOnkey` instance is dropped.
+    ///
+    /// This leaves zero traces on the user's machine. Disabled by default
+    /// so that pulled models persist across runs.
+    #[cfg(feature = "docker")]
+    pub fn docker_cleanup(mut self, on: bool) -> Self {
+        self.docker_cleanup = on;
+        self
+    }
+
     /// Build the [`OddOnkey`] instance: installs Ollama, starts the
     /// server, and pulls the model as needed.
+    ///
+    /// When the `docker` feature is enabled and `.docker(true)` was
+    /// called, Ollama runs inside a Docker container instead of being
+    /// installed locally.
     pub async fn build(self) -> Result<OddOnkey, OddOnkeyError> {
         let client = Client::builder()
             .timeout(Duration::from_secs(300))
             .build()?;
 
-        // 1. Ensure ollama binary exists
-        installer::ensure_ollama_installed()?;
+        #[cfg(feature = "docker")]
+        let base_url = if self.docker {
+            let mut mgr = DockerManager::new()
+                .host_port(self.docker_port)
+                .gpu(self.docker_gpu);
 
-        // 2. Ensure server is reachable
-        installer::ensure_server_running(&client, &self.base_url, self.progress).await?;
+            mgr.ensure_running(&client, self.progress).await?;
 
-        // 3. Ensure model is available
-        pull::ensure_model_available(&client, &self.base_url, &self.model_name, self.progress)
-            .await?;
+            // Pull the model inside the container
+            let docker_base = mgr.base_url();
+            pull::ensure_model_available(&client, &docker_base, &self.model_name, self.progress)
+                .await?;
 
-        let provider = OllamaClient::new(client, self.base_url);
+            docker_base
+        } else {
+            installer::ensure_ollama_installed()?;
+            installer::ensure_server_running(&client, &self.base_url, self.progress).await?;
+            pull::ensure_model_available(&client, &self.base_url, &self.model_name, self.progress)
+                .await?;
+            self.base_url.clone()
+        };
+
+        #[cfg(not(feature = "docker"))]
+        let base_url = {
+            installer::ensure_ollama_installed()?;
+            installer::ensure_server_running(&client, &self.base_url, self.progress).await?;
+            pull::ensure_model_available(&client, &self.base_url, &self.model_name, self.progress)
+                .await?;
+            self.base_url.clone()
+        };
+
+        let provider = OllamaClient::new(client, base_url);
 
         Ok(OddOnkey::from_provider(
             Box::new(provider),
             self.model_name,
             self.progress,
             self.report,
+            #[cfg(feature = "docker")]
+            self.docker_cleanup,
         ))
     }
 }

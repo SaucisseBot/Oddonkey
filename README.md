@@ -58,6 +58,7 @@ oddonkey = { git = "...", features = ["progress", "report"] }
 |------------|----------------------------------------------------------|
 | `progress` | Shows an `indicatif` progress bar during model pull and a spinner while the server starts. |
 | `report`   | Enables the `PromptReport` struct (also togglable at runtime via `.enable_report(true)`).   |
+| `docker`   | Run Ollama inside a Docker container — zero local install outside Docker. Requires Docker on the host. |
 
 ## Usage
 
@@ -70,6 +71,39 @@ let mut model = OddOnkey::builder("mistral")
     .report(true)                       // collect per-prompt stats
     .build()
     .await?;
+```
+
+### Docker mode (zero local install)
+
+With the `docker` feature enabled, Ollama runs entirely inside a Docker container — nothing is installed on the host except Docker itself.
+
+```toml
+oddonkey = { git = "...", features = ["docker"] }
+```
+
+```rust
+let mut model = OddOnkey::builder("mistral")
+    .docker(true)           // run Ollama in Docker
+    .docker_gpu(true)       // optional: GPU passthrough (requires NVIDIA Container Toolkit)
+    .docker_port(11434)     // optional: custom host port
+    .docker_cleanup(true)   // optional: remove container + data on drop (zero waste)
+    .progress(true)
+    .build()
+    .await?;
+
+// Use exactly like normal — same API
+let answer = model.prompt("Hello!").await?;
+// When `model` is dropped, the container and its volume are destroyed automatically.
+```
+
+The container (`oddonkey-ollama`) persists pulled models across restarts. You can also manage it directly via `DockerManager`:
+
+```rust
+use oddonkey::DockerManager;
+
+let mgr = DockerManager::new().gpu(true);
+mgr.stop()?;    // stop the container (models persist)
+mgr.destroy()?; // stop + remove container and volume
 ```
 
 ### System pre-prompts
@@ -153,12 +187,14 @@ src/
 ├── ports/
 │   └── llm_provider.rs     # LlmProvider trait
 ├── adapters/
-│   └── ollama/             # Ollama HTTP adapter
-│       ├── client.rs       # LlmProvider implementation
-│       ├── installer.rs    # auto-install & server start
-│       ├── pull.rs         # model pull with progress
-│       ├── stream.rs       # TokenStream
-│       └── types.rs        # Ollama JSON DTOs
+│   ├── ollama/             # Ollama HTTP adapter
+│   │   ├── client.rs       # LlmProvider implementation
+│   │   ├── installer.rs    # auto-install & server start
+│   │   ├── pull.rs         # model pull with progress
+│   │   ├── stream.rs       # TokenStream
+│   │   └── types.rs        # Ollama JSON DTOs
+│   └── docker/             # Docker adapter (feature-gated)
+│       └── manager.rs      # container lifecycle management
 └── core/
     ├── oddonkey.rs          # OddOnkey struct (backend-agnostic)
     └── builder.rs           # OddOnkeyBuilder
